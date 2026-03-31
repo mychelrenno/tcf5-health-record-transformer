@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HealthRecord.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report"></a> &gt; <a href="index.source.html" class="el_package">br.com.tcf5_health_record_transformer.domain.model</a> &gt; <span class="el_source">HealthRecord.java</span></div><h1>HealthRecord.java</h1><pre class="source lang-java linenums">package br.com.tcf5_health_record_transformer.domain.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;health_records&quot;)
+<span class="pc bpc" id="L12" title="33 of 54 branches missed.">@Data</span>
+<span class="pc" id="L13">@Builder</span>
+<span class="fc" id="L14">@NoArgsConstructor</span>
+<span class="fc" id="L15">@AllArgsConstructor</span>
+public class HealthRecord {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+<span class="fc" id="L19">    private Long id;</span>
+
+<span class="fc" id="L21">    private String patientId;</span>
+<span class="fc" id="L22">    private String resourceType; // Observation, Condition, etc.</span>
+
+    @Column(name = &quot;client_id&quot;)
+<span class="fc" id="L25">    private UUID clientId; // referencia ao cliente/regra (UUID)</span>
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = &quot;resource_content&quot;, columnDefinition = &quot;jsonb&quot;)
+<span class="fc" id="L29">    private String resourceContent;</span>
+
+<span class="fc" id="L31">    private LocalDateTime processedAt;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

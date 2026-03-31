@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HealthRecordConsumer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report"></a> &gt; <a href="index.source.html" class="el_package">br.com.tcf5_health_record_transformer.messaging</a> &gt; <span class="el_source">HealthRecordConsumer.java</span></div><h1>HealthRecordConsumer.java</h1><pre class="source lang-java linenums">package br.com.tcf5_health_record_transformer.messaging;
+
+import br.com.tcf5_health_record_transformer.domain.model.HealthRecord;
+import br.com.tcf5_health_record_transformer.domain.service.JoltTransformer;
+import br.com.tcf5_health_record_transformer.domain.service.RuleService;
+import br.com.tcf5_health_record_transformer.infrastructure.repository.HealthRecordRepository;
+import br.com.tcf5_health_record_transformer.validation.FhirValidationService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.stereotype.Component;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+@Component
+public class HealthRecordConsumer {
+
+<span class="fc" id="L36">    private static final Logger log = LoggerFactory.getLogger(HealthRecordConsumer.class);</span>
+
+    // Executor agendado para retries de envio ao DLQ (daemon)
+<span class="fc" id="L39">    private static final ScheduledExecutorService DLQ_SCHEDULER = Executors.newScheduledThreadPool(1, r -&gt; {</span>
+<span class="fc" id="L40">        Thread t = new Thread(r, &quot;dlq-retry-thread&quot;);</span>
+<span class="fc" id="L41">        t.setDaemon(true);</span>
+<span class="fc" id="L42">        return t;</span>
+    });
+
+    private final RuleService ruleService;
+    private final JoltTransformer transformer;
+    private final HealthRecordRepository repository;
+    private final ObjectMapper objectMapper;
+    private final KafkaTemplate&lt;String, String&gt; kafkaTemplate;
+    private final FhirValidationService fhirValidationService;
+    private final boolean fhirValidationEnabled;
+
+    // dlq topic injetado via properties
+    private final String dlqTopic;
+
+<span class="fc" id="L56">    public HealthRecordConsumer(RuleService ruleService, JoltTransformer transformer, HealthRecordRepository repository, ObjectMapper objectMapper, KafkaTemplate&lt;String, String&gt; kafkaTemplate, FhirValidationService fhirValidationService, @Value(&quot;${app.kafka.dlq-topic}&quot;) String dlqTopic, @Value(&quot;${app.fhir.validation.enabled:true}&quot;) boolean fhirValidationEnabled) {</span>
+<span class="fc" id="L57">        this.ruleService = ruleService;</span>
+<span class="fc" id="L58">        this.transformer = transformer;</span>
+<span class="fc" id="L59">        this.repository = repository;</span>
+<span class="fc" id="L60">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L61">        this.kafkaTemplate = kafkaTemplate;</span>
+<span class="fc" id="L62">        this.fhirValidationService = fhirValidationService;</span>
+<span class="fc" id="L63">        this.dlqTopic = dlqTopic;</span>
+<span class="fc" id="L64">        this.fhirValidationEnabled = fhirValidationEnabled;</span>
+<span class="fc" id="L65">    }</span>
+
+    @KafkaListener(topics = &quot;${app.kafka.inbound-topic}&quot;, groupId = &quot;${spring.kafka.consumer.group-id}&quot;)
+    public void consume(ConsumerRecord&lt;String, String&gt; consumerRecord) {
+<span class="fc" id="L69">        String message = consumerRecord.value();</span>
+        try {
+<span class="fc" id="L71">            log.info(&quot;Mensagem recebida do Kafka&quot;);</span>
+<span class="fc" id="L72">            JsonNode root = objectMapper.readTree(message);</span>
+
+            // Tentativa 1: extrair clientId a partir dos headers Kafka (prioritário)
+<span class="fc" id="L75">            String clientIdStr = null;</span>
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">            if (consumerRecord.headers() != null) {</span>
+<span class="fc" id="L77">                var h = consumerRecord.headers().lastHeader(&quot;origem_id&quot;);</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">                if (h == null) h = consumerRecord.headers().lastHeader(&quot;client_id&quot;);</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">                if (h == null) h = consumerRecord.headers().lastHeader(&quot;clientId&quot;);</span>
+<span class="pc bpc" id="L80" title="1 of 4 branches missed.">                if (h != null &amp;&amp; h.value() != null) {</span>
+<span class="fc" id="L81">                    clientIdStr = new String(h.value(), StandardCharsets.UTF_8).trim();</span>
+                }
+            }
+
+            // Fallback: extrair do payload JSON se header não estiver presente
+<span class="pc bpc" id="L86" title="1 of 4 branches missed.">            if (clientIdStr == null || clientIdStr.isEmpty()) {</span>
+<span class="fc" id="L87">                clientIdStr = root.path(&quot;origem_id&quot;).asText(null);</span>
+            }
+
+<span class="fc" id="L90">            String patientId = root.path(&quot;paciente&quot;).path(&quot;cpf&quot;).asText();</span>
+
+            // 1. Busca Regra JOLT
+<span class="fc" id="L93">            UUID clientId = parseClientId(clientIdStr);</span>
+<span class="fc" id="L94">            String spec = ruleService.getSpec(clientId);</span>
+
+            // 2. Transforma para FHIR (Simulado pelo JOLT)
+<span class="fc" id="L97">            String fhirJson = transformer.transform(message, spec);</span>
+
+            // 2.1 validar FHIR JSON (usando HAPI FHIR) se habilitado
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">            if (fhirValidationEnabled) {</span>
+<span class="fc" id="L101">                fhirValidationService.validateOrThrow(fhirJson);</span>
+            }
+
+            // 3. Persiste no Postgres
+<span class="fc" id="L105">            HealthRecord healthRecord = new HealthRecord();</span>
+<span class="fc" id="L106">            healthRecord.setPatientId(patientId);</span>
+<span class="fc" id="L107">            healthRecord.setResourceType(&quot;Bundle&quot;);</span>
+<span class="fc" id="L108">            healthRecord.setResourceContent(fhirJson);</span>
+<span class="fc" id="L109">            healthRecord.setProcessedAt(LocalDateTime.now());</span>
+<span class="fc" id="L110">            healthRecord.setClientId(clientId);</span>
+
+<span class="fc" id="L112">            repository.save(healthRecord);</span>
+<span class="fc" id="L113">            log.info(&quot;Dado transformado e salvo com sucesso para o paciente: {}&quot;, patientId);</span>
+
+<span class="nc" id="L115">        } catch (Exception e) {</span>
+<span class="nc" id="L116">            log.error(&quot;Erro ao processar mensagem&quot;, e);</span>
+
+            try {
+
+                // Monta payload DLQ com metadados e stacktrace
+<span class="nc" id="L121">                ObjectNode dlq = objectMapper.createObjectNode();</span>
+<span class="nc" id="L122">                dlq.put(&quot;originalTopic&quot;, consumerRecord.topic());</span>
+<span class="nc" id="L123">                dlq.put(&quot;originalPartition&quot;, consumerRecord.partition());</span>
+<span class="nc" id="L124">                dlq.put(&quot;originalOffset&quot;, consumerRecord.offset());</span>
+<span class="nc" id="L125">                dlq.put(&quot;originalTimestamp&quot;, consumerRecord.timestamp());</span>
+
+                // tenta parsear o payload original; se falhar, grava como string
+                try {
+<span class="nc" id="L129">                    dlq.set(&quot;payload&quot;, objectMapper.readTree(message));</span>
+<span class="nc" id="L130">                } catch (Exception exJson) {</span>
+<span class="nc" id="L131">                    dlq.put(&quot;payload_as_text&quot;, message);</span>
+<span class="nc" id="L132">                }</span>
+
+<span class="nc" id="L134">                dlq.put(&quot;errorMessage&quot;, e.toString());</span>
+<span class="nc" id="L135">                dlq.put(&quot;stackTrace&quot;, getStackTrace(e));</span>
+<span class="nc" id="L136">                dlq.put(&quot;processedBy&quot;, &quot;tcf5-health-record-transformer&quot;);</span>
+<span class="nc" id="L137">                dlq.put(&quot;processedAt&quot;, LocalDateTime.now().toString());</span>
+
+<span class="nc" id="L139">                String dlqJson = objectMapper.writeValueAsString(dlq);</span>
+
+<span class="nc" id="L141">                ProducerRecord&lt;String, String&gt; prod = new ProducerRecord&lt;&gt;(dlqTopic, null, dlqJson);</span>
+
+                // headers para filtragem rápida
+<span class="nc" id="L144">                prod.headers().add(&quot;x-error&quot;, e.toString().getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L145">                prod.headers().add(&quot;x-src-topic&quot;, consumerRecord.topic().getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L146">                prod.headers().add(&quot;x-src-partition&quot;, Integer.toString(consumerRecord.partition()).getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L147">                prod.headers().add(&quot;x-src-offset&quot;, Long.toString(consumerRecord.offset()).getBytes(StandardCharsets.UTF_8));</span>
+
+                // Envia para DLQ com retries (3 tentativas, backoff inicial 500ms)
+<span class="nc" id="L150">                CompletableFuture&lt;SendResult&lt;String, String&gt;&gt; sendFuture = sendWithRetries(prod, 3, 500);</span>
+
+<span class="nc" id="L152">                sendFuture.whenComplete((result, ex2) -&gt; {</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">                    if (ex2 != null) {</span>
+<span class="nc" id="L154">                        log.error(&quot;Falha final ao enviar mensagem para DLQ após tentativas: {}&quot;, ex2.getMessage(), ex2);</span>
+<span class="nc bnc" id="L155" title="All 4 branches missed.">                    } else if (result != null &amp;&amp; result.getRecordMetadata() != null) {</span>
+<span class="nc" id="L156">                        RecordMetadata md = result.getRecordMetadata();</span>
+<span class="nc" id="L157">                        log.info(&quot;Mensagem enviada para DLQ {} at partition {} offset {}&quot;, dlqTopic, md.partition(), md.offset());</span>
+<span class="nc" id="L158">                    } else {</span>
+<span class="nc" id="L159">                        log.warn(&quot;Mensagem enviada para DLQ {}, mas metadados de partição/offset não estão disponíveis&quot;, dlqTopic);</span>
+                    }
+<span class="nc" id="L161">                });</span>
+
+<span class="nc" id="L163">            } catch (Exception ex) {</span>
+<span class="nc" id="L164">                log.error(&quot;Erro ao tentar encaminhar mensagem para DLQ&quot;, ex);</span>
+<span class="nc" id="L165">            }</span>
+<span class="fc" id="L166">        }</span>
+<span class="fc" id="L167">    }</span>
+
+    private String getStackTrace(Throwable t) {
+<span class="nc" id="L170">        StringWriter sw = new StringWriter();</span>
+<span class="nc" id="L171">        try (PrintWriter pw = new PrintWriter(sw)) {</span>
+<span class="nc" id="L172">            t.printStackTrace(pw);</span>
+        }
+<span class="nc" id="L174">        return sw.toString();</span>
+    }
+
+    // Envia um ProducerRecord com tentativas e backoff exponencial.
+    private CompletableFuture&lt;SendResult&lt;String, String&gt;&gt; sendWithRetries(ProducerRecord&lt;String, String&gt; record, int maxAttempts, long initialBackoffMs) {
+<span class="fc" id="L179">        CompletableFuture&lt;SendResult&lt;String, String&gt;&gt; resultFuture = new CompletableFuture&lt;&gt;();</span>
+<span class="fc" id="L180">        sendAttempt(record, maxAttempts, initialBackoffMs, resultFuture);</span>
+<span class="fc" id="L181">        return resultFuture;</span>
+    }
+
+    @SuppressWarnings({&quot;unchecked&quot;, &quot;rawtypes&quot;})
+    private void sendAttempt(ProducerRecord&lt;String, String&gt; record, int remainingAttempts, long backoffMs, CompletableFuture&lt;SendResult&lt;String, String&gt;&gt; resultFuture) {
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        if (resultFuture.isDone()) {</span>
+<span class="nc" id="L187">            return;</span>
+        }
+
+        try {
+<span class="fc" id="L191">            Object sendObj = kafkaTemplate.send(record);</span>
+<span class="fc" id="L192">            CompletableFuture&lt;SendResult&lt;String, String&gt;&gt; sendCf = toCompletableFuture(sendObj);</span>
+
+<span class="fc" id="L194">            sendCf.whenComplete((res, ex) -&gt; {</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                if (ex == null) {</span>
+<span class="fc" id="L196">                    resultFuture.complete(res);</span>
+                } else {
+<span class="fc bfc" id="L198" title="All 2 branches covered.">                    if (remainingAttempts &gt; 1) {</span>
+<span class="fc" id="L199">                        log.warn(&quot;Falha ao enviar para DLQ (tentativas restantes={}): {}. Reagendando em {}ms&quot;, remainingAttempts - 1, ex.getMessage(), backoffMs);</span>
+<span class="fc" id="L200">                        DLQ_SCHEDULER.schedule(() -&gt; sendAttempt(record, remainingAttempts - 1, backoffMs * 2, resultFuture), backoffMs, TimeUnit.MILLISECONDS);</span>
+                    } else {
+<span class="fc" id="L202">                        log.error(&quot;Ultima tentativa de envio para DLQ falhou: {}&quot;, ex.getMessage(), ex);</span>
+<span class="fc" id="L203">                        resultFuture.completeExceptionally(ex);</span>
+                    }
+                }
+<span class="fc" id="L206">            });</span>
+
+<span class="nc" id="L208">        } catch (Exception ex) {</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">            if (remainingAttempts &gt; 1) {</span>
+<span class="nc" id="L210">                log.warn(&quot;Exceção ao tentar enviar para DLQ (tentativas restantes={}): {}. Reagendando em {}ms&quot;, remainingAttempts - 1, ex.getMessage(), backoffMs);</span>
+<span class="nc" id="L211">                DLQ_SCHEDULER.schedule(() -&gt; sendAttempt(record, remainingAttempts - 1, backoffMs * 2, resultFuture), backoffMs, TimeUnit.MILLISECONDS);</span>
+            } else {
+<span class="nc" id="L213">                resultFuture.completeExceptionally(ex);</span>
+            }
+<span class="fc" id="L215">        }</span>
+<span class="fc" id="L216">    }</span>
+
+    // Converte um Future (possivelmente o ListenableFuture retornado por KafkaTemplate) em CompletableFuture.
+    // Se for um Future genérico, faz o get() em uma thread separada para não bloquear o caller.
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private &lt;T&gt; CompletableFuture&lt;T&gt; toCompletableFuture(Object future) {
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">        if (future == null) {</span>
+<span class="nc" id="L223">            CompletableFuture&lt;T&gt; failed = new CompletableFuture&lt;&gt;();</span>
+<span class="nc" id="L224">            failed.completeExceptionally(new IllegalStateException(&quot;send returned null future&quot;));</span>
+<span class="nc" id="L225">            return failed;</span>
+        }
+
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">        if (future instanceof CompletableFuture&lt;?&gt; cf) {</span>
+<span class="fc" id="L229">            return (CompletableFuture&lt;T&gt;) cf;</span>
+        }
+
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        if (future instanceof Future&lt;?&gt; f) {</span>
+            // Tenta evitar bloquear a thread atual criando uma thread que aguarda o future
+<span class="nc" id="L234">            CompletableFuture&lt;T&gt; completable = new CompletableFuture&lt;&gt;();</span>
+<span class="nc" id="L235">            Thread waiter = new Thread(() -&gt; {</span>
+                try {
+                    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L238">                    T res = (T) f.get();</span>
+<span class="nc" id="L239">                    completable.complete(res);</span>
+<span class="nc" id="L240">                } catch (Exception ex) {</span>
+<span class="nc" id="L241">                    completable.completeExceptionally(ex);</span>
+<span class="nc" id="L242">                }</span>
+<span class="nc" id="L243">            });</span>
+<span class="nc" id="L244">            waiter.setDaemon(true);</span>
+<span class="nc" id="L245">            waiter.start();</span>
+<span class="nc" id="L246">            return completable;</span>
+        }
+
+<span class="nc" id="L249">        CompletableFuture&lt;T&gt; failed = new CompletableFuture&lt;&gt;();</span>
+<span class="nc" id="L250">        failed.completeExceptionally(new IllegalArgumentException(&quot;Unknown future type: &quot; + future.getClass().getName()));</span>
+<span class="nc" id="L251">        return failed;</span>
+    }
+
+    private UUID parseClientId(String s) {
+<span class="pc bpc" id="L255" title="1 of 2 branches missed.">        if (s == null) return null;</span>
+        try {
+<span class="nc" id="L257">            return UUID.fromString(s);</span>
+<span class="fc" id="L258">        } catch (IllegalArgumentException e) {</span>
+            // gera um UUID determinístico a partir da string legada
+<span class="fc" id="L260">            return UUID.nameUUIDFromBytes(s.getBytes());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

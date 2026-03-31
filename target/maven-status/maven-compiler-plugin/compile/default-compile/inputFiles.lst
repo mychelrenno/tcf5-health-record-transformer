@@ -1,0 +1,16 @@
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\infrastructure\repository\HealthRecordRepository.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\domain\service\JoltTransformer.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\domain\service\RuleService.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\domain\model\HealthRecord.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\web\dto\JoltSpecDeserializer.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\domain\model\MappingRule.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\infrastructure\repository\MappingRuleRepository.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\validation\HapiFhirValidationService.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\domain\model\JsonbConverter.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\validation\FhirValidationService.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\web\MappingRuleController.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\config\KafkaConsumerConfig.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\messaging\HealthRecordConsumer.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\Tcf5HealthRecordTransformerApplication.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\web\dto\MappingRuleRequest.java
+C:\Users\thiag\Estudos\FIAP\Tech Challenge - Fase 5\tcf5-health-record-transformer\src\main\java\br\com\tcf5_health_record_transformer\validation\FhirValidationException.java
