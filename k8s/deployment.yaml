@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tcf5-health-record-transformer
+  labels:
+    app: tcf5-health-record-transformer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tcf5-health-record-transformer
+  template:
+    metadata:
+      labels:
+        app: tcf5-health-record-transformer
+    spec:
+      containers:
+        - name: app
+          # troque a imagem abaixo por <registry>/tcf5-health-record-transformer:<tag>
+          image: tcf5-health-record-transformer:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: tcf5-health-record-transformer-config
+            - secretRef:
+                name: tcf5-health-record-transformer-secret
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+

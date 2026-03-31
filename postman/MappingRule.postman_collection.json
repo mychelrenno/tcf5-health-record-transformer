@@ -1,0 +1,138 @@
+{
+  "info": {
+    "name": "MappingRule API",
+    "_postman_id": "tcf5-mappingrule-collection",
+    "description": "Coleção para criar/editar/remover MappingRules na API tcf5-health-record-transformer",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create MappingRule (valid)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Try to extract clientId from Location header first, then from body",
+              "var location = pm.response.headers.get('Location') || pm.response.headers.get('location');",
+              "if (location) {",
+              "  var parts = location.split('/');",
+              "  var clientId = parts[parts.length-1];",
+              "  pm.environment.set('clientId', clientId);",
+              "  console.log('Saved clientId from Location header:', clientId);",
+              "} else {",
+              "  try {",
+              "    var body = pm.response.json();",
+              "    if (body && body.clientId) {",
+              "      pm.environment.set('clientId', body.clientId);",
+              "      console.log('Saved clientId from response body:', body.clientId);",
+              "    } else if (typeof body === 'string' && body.length > 0) {",
+              "      // may be the API returns the id as plain text",
+              "      pm.environment.set('clientId', body);",
+              "      console.log('Saved clientId from response text:', body);",
+              "    }",
+              "  } catch (err) {",
+              "    console.log('Could not parse response to extract clientId:', err);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"MY_CLIENT\",\n  \"joltSpec\": [{\"op\":\"shift\",\"spec\":{\"a\":\"A\"}}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/mapping-rules",
+          "host": ["{{baseUrl}}"],
+          "path": ["mapping-rules"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create MappingRule (invalid joltSpec)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"MY_CLIENT_INVALID\",\n  \"joltSpec\": \"not-a-json\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/mapping-rules", "host": ["{{baseUrl}}"], "path": ["mapping-rules"] }
+      }
+    },
+    {
+      "name": "List MappingRules",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/mapping-rules", "host": ["{{baseUrl}}"], "path": ["mapping-rules"] }
+      }
+    },
+    {
+      "name": "Get MappingRule by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/mapping-rules/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["mapping-rules", "{{clientId}}"] }
+      }
+    },
+    {
+      "name": "Update (PUT) MappingRule (idempotent upsert)",
+      "request": {
+        "method": "PUT",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"joltSpec\": [{\"op\":\"shift\",\"spec\":{\"b\":\"B\"}}]\n}" },
+        "url": { "raw": "{{baseUrl}}/mapping-rules/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["mapping-rules", "{{clientId}}"] }
+      }
+    },
+    {
+      "name": "Delete MappingRule",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/mapping-rules/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["mapping-rules", "{{clientId}}"] }
+      }
+    },
+    {
+      "name": "Create MappingRule with upsert=true (overwrite)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// same auto-extraction as the main create request",
+              "var location = pm.response.headers.get('Location') || pm.response.headers.get('location');",
+              "if (location) {",
+              "  var parts = location.split('/');",
+              "  var clientId = parts[parts.length-1];",
+              "  pm.environment.set('clientId', clientId);",
+              "  console.log('Saved clientId from Location header:', clientId);",
+              "} else {",
+              "  try {",
+              "    var body = pm.response.json();",
+              "    if (body && body.clientId) pm.environment.set('clientId', body.clientId);",
+              "  } catch (err) { console.log('Could not parse response to extract clientId:', err); }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"clientId\": \"MY_CLIENT\",\n  \"joltSpec\": [{\"op\":\"shift\",\"spec\":{\"c\":\"C\"}}]\n}" },
+        "url": { "raw": "{{baseUrl}}/mapping-rules?upsert=true", "host": ["{{baseUrl}}"], "path": ["mapping-rules"], "query": [ { "key": "upsert", "value": "true" } ] }
+      }
+    }
+  ]
+}

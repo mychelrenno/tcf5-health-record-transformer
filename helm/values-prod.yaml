@@ -1,0 +1,25 @@
+# values-prod.yaml
+# Valores para ambiente de produção
+# ATENÇÃO: mantenha secrets (DB_PASS) em segredo; use um Secret do Kubernetes ou sistema de vault
+env:
+  # Database
+  DB_HOST: "postgres.prod.svc.cluster.local"
+  DB_NAME: "sus_interop"
+  DB_USER: "sus_admin"
+  DB_PASS: "${DB_PASS_PROD}"
+
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "kafka1.prod:9092,kafka2.prod:9092"
+  KAFKA_CONSUMER_GROUP: "tcf5-transformer-group"
+  KAFKA_INBOUND_TOPIC: "atendimentos-brutos"
+  KAFKA_DLQ_TOPIC: "atendimentos-brutos-dlq"
+
+replicaCount: 3
+resources:
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+

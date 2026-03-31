@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tcf5-postgres
+    environment:
+      POSTGRES_USER: sus_admin
+      POSTGRES_PASSWORD: sus_password
+      POSTGRES_DB: sus_interop
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: tcf5-kafka
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:29092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092,OUTSIDE://host.docker.internal:29092
+    ports:
+      - "29092:29092"
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: tcf5-kafka-ui
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "redpanda:9092"
+    depends_on:
+      - redpanda
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "8083:8083"   # host:container aligned with application.yaml server.port: 8083
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=sus_interop
+      - DB_USER=sus_admin
+      - DB_PASS=sus_password
+      - SERVER_ADDRESS=0.0.0.0
+      - SERVER_PORT=8083
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+    depends_on:
+      - postgres
+      - redpanda
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  redpanda_data:

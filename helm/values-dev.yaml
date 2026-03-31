@@ -1,0 +1,20 @@
+# values-dev.yaml
+# Valores para ambiente de desenvolvimento
+# Use este arquivo com `helm install/upgrade -f helm/values-dev.yaml` ou para gerar variáveis de ambiente
+env:
+  # Database
+  DB_HOST: "localhost"
+  DB_NAME: "sus_interop_dev"
+  DB_USER: "sus_admin"
+  DB_PASS: "sus_password_dev"
+
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "localhost:29092"
+  KAFKA_CONSUMER_GROUP: "tcf5-transformer-group-dev"
+  KAFKA_INBOUND_TOPIC: "atendimentos-brutos"
+  KAFKA_DLQ_TOPIC: "atendimentos-brutos-dlq"
+
+# Opções adicionais (não obrigatórias)
+replicaCount: 1
+resources: {}
+
