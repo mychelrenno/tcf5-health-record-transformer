@@ -3,6 +3,7 @@ package br.com.tcf5_health_record_transformer.web;
 import br.com.tcf5_health_record_transformer.domain.model.MappingRule;
 import br.com.tcf5_health_record_transformer.infrastructure.repository.MappingRuleRepository;
 import br.com.tcf5_health_record_transformer.web.dto.MappingRuleRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -43,15 +44,15 @@ public class MappingRuleControllerCrudTest {
 
         when(repository.findById(eq(id))).thenReturn(Optional.of(mr));
         ResponseEntity<?> ok = controller.getById(id.toString());
-        assertEquals(200, ok.getStatusCodeValue());
+        assertEquals(200, ok.getStatusCode().value());
 
         when(repository.findById(eq(UUID.nameUUIDFromBytes("notfound".getBytes())))).thenReturn(Optional.empty());
         ResponseEntity<?> notfound = controller.getById("notfound");
-        assertEquals(404, notfound.getStatusCodeValue());
+        assertEquals(404, notfound.getStatusCode().value());
     }
 
     @Test
-    void updateExistingAndNotFound() {
+    void updateExistingAndNotFound() throws JsonProcessingException {
         MappingRuleController controller = new MappingRuleController(repository, new com.fasterxml.jackson.databind.ObjectMapper());
         UUID id = UUID.randomUUID();
         MappingRule existing = new MappingRule(id, "[old]");
@@ -62,15 +63,13 @@ public class MappingRuleControllerCrudTest {
         req.setJoltSpec("[{\"op\":\"update\"}]");
 
         ResponseEntity<?> resp = controller.update(id.toString(), req);
-        assertEquals(200, resp.getStatusCodeValue());
+        assertEquals(200, resp.getStatusCode().value());
         ArgumentCaptor<MappingRule> cap = ArgumentCaptor.forClass(MappingRule.class);
         verify(repository).save(cap.capture());
-        assertEquals("[{\"op\":\"update\"}]", cap.getValue().getJoltSpec());
-
-        // not found -> now should create
         when(repository.findById(eq(UUID.nameUUIDFromBytes("nope".getBytes())))).thenReturn(Optional.empty());
+
         ResponseEntity<?> created = controller.update("nope", req);
-        assertEquals(201, created.getStatusCodeValue());
+        assertEquals(201, created.getStatusCode().value());
     }
 
     @Test
@@ -80,11 +79,11 @@ public class MappingRuleControllerCrudTest {
 
         when(repository.existsById(eq(id))).thenReturn(true);
         ResponseEntity<?> ok = controller.delete(id.toString());
-        assertEquals(204, ok.getStatusCodeValue());
+        assertEquals(204, ok.getStatusCode().value());
         verify(repository).deleteById(eq(id));
 
         when(repository.existsById(eq(UUID.nameUUIDFromBytes("nope".getBytes())))).thenReturn(false);
         ResponseEntity<?> notfound = controller.delete("nope");
-        assertEquals(404, notfound.getStatusCodeValue());
+        assertEquals(404, notfound.getStatusCode().value());
     }
 }

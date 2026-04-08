@@ -44,7 +44,7 @@ public class HealthRecordConsumerHeaderTest {
 
         String payload = "{\"paciente\":{\"cpf\":\"12345678900\"}}"; // no origem_id in payload
         ConsumerRecord<String, String> record = new ConsumerRecord<>("atendimentos-brutos", 0, 0L, "key", payload);
-        record.headers().add(new RecordHeader("origem_id", "UPA_RECIFE_01".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("clientId", "UPA_RECIFE_01".getBytes(StandardCharsets.UTF_8)));
 
         UUID expected = UUID.nameUUIDFromBytes("UPA_RECIFE_01".getBytes());
 

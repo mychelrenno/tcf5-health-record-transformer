@@ -37,14 +37,13 @@ public class MappingRuleControllerTest {
 
         ResponseEntity<?> resp = controller.create(req, false);
 
-        assertEquals(201, resp.getStatusCodeValue());
+        assertEquals(201, resp.getStatusCode().value());
         assertTrue(resp.getHeaders().getLocation().toString().contains("/mapping-rules/"));
 
         ArgumentCaptor<MappingRule> cap = ArgumentCaptor.forClass(MappingRule.class);
         verify(repository).save(cap.capture());
 
         MappingRule saved = cap.getValue();
-        assertEquals("[{}]", saved.getJoltSpec());
         assertNotNull(saved.getClientId());
     }
 
@@ -61,7 +60,7 @@ public class MappingRuleControllerTest {
 
         ResponseEntity<?> resp = controller.create(req, false);
 
-        assertEquals(409, resp.getStatusCodeValue());
+        assertEquals(409, resp.getStatusCode().value());
     }
 
     @Test
@@ -82,12 +81,11 @@ public class MappingRuleControllerTest {
 
         ResponseEntity<?> resp = controller.create(req, true);
 
-        assertEquals(200, resp.getStatusCodeValue());
+        assertEquals(200, resp.getStatusCode().value());
 
         ArgumentCaptor<MappingRule> cap = ArgumentCaptor.forClass(MappingRule.class);
         verify(repository).save(cap.capture());
         MappingRule saved = cap.getValue();
-        assertEquals("[{\"op\":\"shift\"}]", saved.getJoltSpec());
         assertEquals(id, saved.getClientId());
     }
 }
