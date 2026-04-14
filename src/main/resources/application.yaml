@@ -43,7 +43,7 @@ app:
   # Ativa/desativa validação FHIR (true/false)
   fhir:
     validation:
-      enabled: ${APP_FHIR_VALIDATION_ENABLED:true}
+      enabled: ${APP_FHIR_VALIDATION_ENABLED:false}
 
 # Log para debug (ajuda na defesa da pós)
 logging:

@@ -77,12 +77,10 @@ public class HealthRecordConsumer {
                     clientIdStr = new String(h.value(), StandardCharsets.UTF_8).trim();
                 }
             }
-
-            if (clientIdStr == null || clientIdStr.isEmpty()) {
-                clientIdStr = root.path("origem_id").asText(null);
+            String patientId = root.path("paciente").path("documento").asText();
+            if (patientId == null) {
+                patientId = root.path("paciente").path("cpf").asText();
             }
-
-            String patientId = root.path("paciente").path("cpf").asText();
 
             // 1. Busca Regra JOLT
             UUID clientId = parseClientId(clientIdStr);
@@ -251,8 +249,8 @@ public class HealthRecordConsumer {
         try {
             return UUID.fromString(s);
         } catch (IllegalArgumentException e) {
-            // gera um UUID determinístico a partir da string legada
-            return UUID.nameUUIDFromBytes(s.getBytes());
+            Throwable cause = e.getCause();
         }
+        return null;
     }
 }
